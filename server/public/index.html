@@ -264,6 +264,18 @@
           <button class="mini-arrow right" id="miniNext" aria-label="Следующий"><span class="arrow-icon">&#10095;</span></button>
         </div>
 
+        <!-- Образцы документов -->
+        <div class="document-samples" style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+          <h4 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">📄 Образцы документов</h4>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            <button class="sample-doc-btn" data-doc="gift" style="padding: 6px 12px; background: #e3f2fd; border: 1px solid #2196f3; border-radius: 4px; cursor: pointer; font-size: 12px;">Договор дарения</button>
+            <button class="sample-doc-btn" data-doc="sale-car" style="padding: 6px 12px; background: #e8f5e8; border: 1px solid #4caf50; border-radius: 4px; cursor: pointer; font-size: 12px;">Купля-продажа авто</button>
+            <button class="sample-doc-btn" data-doc="rent" style="padding: 6px 12px; background: #fff3e0; border: 1px solid #ff9800; border-radius: 4px; cursor: pointer; font-size: 12px;">Аренда квартиры</button>
+            <button class="sample-doc-btn" data-doc="service" style="padding: 6px 12px; background: #f3e5f5; border: 1px solid #9c27b0; border-radius: 4px; cursor: pointer; font-size: 12px;">Услуги</button>
+            <button class="sample-doc-btn" data-doc="loan" style="padding: 6px 12px; background: #ffebee; border: 1px solid #f44336; border-radius: 4px; cursor: pointer; font-size: 12px;">Займ</button>
+          </div>
+        </div>
+
         <div class="chat">
           <div class="chat-header">Чат с юристом</div>
           <div class="chat-messages" id="chatMessages">
@@ -518,17 +530,25 @@
     const socket = io(window.location.origin, { transports: ['websocket'] });
     async function ensureVisitorChat(){
       try {
-        if (visitorChatId) return visitorChatId;
+        if (visitorChatId) {
+          console.log('Чат уже существует:', visitorChatId);
+          return visitorChatId;
+        }
+        console.log('Создаем новый чат...');
         const r = await fetch(window.location.origin + '/api/chats', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ visitor_id: 'site-' + Math.random().toString(36).slice(2) })
         });
         const d = await r.json();
+        console.log('Ответ сервера:', d);
         visitorChatId = d && d.id;
         if (visitorChatId) {
+          console.log('Чат создан:', visitorChatId);
           socket.emit('join-chat', { chatId: visitorChatId });
           // Загружаем историю сообщений
           loadChatHistory();
+        } else {
+          console.log('Не удалось получить ID чата');
         }
         return visitorChatId;
       } catch(e) { 
@@ -545,9 +565,7 @@
       chatBox.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">Загрузка истории чата...</div>';
       
       try {
-        const response = await fetch(window.location.origin + `/api/chats/${visitorChatId}/messages`, {
-          headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('token') || '') }
-        });
+        const response = await fetch(window.location.origin + `/api/chats/${visitorChatId}/messages`);
         if (response.ok) {
           const messages = await response.json();
           // Очищаем чат и загружаем историю
@@ -624,6 +642,8 @@
       const msg = inputEl.value.trim();
       if (!msg) return;
       
+      console.log('Отправляем сообщение:', msg);
+      
       // Показываем индикатор отправки
       const sendBtn = document.getElementById('sendBtn');
       const originalText = sendBtn.textContent;
@@ -635,11 +655,13 @@
       // Гарантируем наличие чата и отправляем через Socket.IO (сервер сохранит в БД)
       const cid = await ensureVisitorChat();
       if (!cid) {
+        console.log('Не удалось получить ID чата для отправки сообщения');
         sendBtn.textContent = originalText;
         sendBtn.disabled = false;
         return;
       }
       
+      console.log('Отправляем сообщение в чат:', cid);
       socket.emit('message', { chatId: cid, sender: 'visitor', text: msg });
       
       // Восстанавливаем кнопку
@@ -668,8 +690,11 @@
     // Загружаем документы с сервера при загрузке страницы
     async function loadDocumentsFromServer() {
       try {
+        console.log('Загружаем документы с сервера...');
         const res = await fetch(window.location.origin + '/api/documents');
+        console.log('Ответ сервера:', res.status);
         const docs = await res.json();
+        console.log('Получены документы:', docs);
         if (docs && docs.length > 0) {
           // Обновляем docCatalog данными с сервера
           docCatalog = docs.map(doc => ({
@@ -681,6 +706,8 @@
           // Обновляем выпадающий список
           fillDocTypeSelect();
           console.log('Документы загружены с сервера:', docs.length);
+        } else {
+          console.log('Сервер вернул пустой список документов');
         }
       } catch (error) {
         console.log('Не удалось загрузить документы с сервера, используем статические данные:', error);
@@ -701,6 +728,18 @@
     // Загружаем документы и заполняем список при загрузке страницы
     loadDocumentsFromServer().then(() => {
       fillDocTypeSelect();
+    });
+
+    // Обработчики для кнопок образцов документов
+    document.addEventListener('click', function(e) {
+      if (e.target.classList.contains('sample-doc-btn')) {
+        const docType = e.target.getAttribute('data-doc');
+        const docSelect = document.getElementById('docTypeSelect');
+        if (docSelect) {
+          docSelect.value = docType;
+          updateDocPreviewFromSelect();
+        }
+      }
     });
 
     function updateDocPreviewFromSelect() {

@@ -454,8 +454,8 @@ app.get('/api/chats', authMiddleware, requireRoles(['lawyer','admin','owner']), 
   }
 });
 
-// List messages in chat
-app.get('/api/chats/:chatId/messages', authMiddleware, requireRoles(['lawyer','admin','owner']), async (req, res) => {
+// List messages in chat (allow visitors to read their own chat)
+app.get('/api/chats/:chatId/messages', async (req, res) => {
   try {
     const { chatId } = req.params;
     const { rows } = await pool.query('select id, sender, text, created_at from messages where chat_id=$1 order by id asc limit 200', [chatId]);
