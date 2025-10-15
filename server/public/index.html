@@ -525,18 +525,97 @@
         });
         const d = await r.json();
         visitorChatId = d && d.id;
-        if (visitorChatId) socket.emit('join-chat', { chatId: visitorChatId });
+        if (visitorChatId) {
+          socket.emit('join-chat', { chatId: visitorChatId });
+          // Загружаем историю сообщений
+          loadChatHistory();
+        }
         return visitorChatId;
-      } catch(e) { return null; }
+      } catch(e) { 
+        console.log('Ошибка создания чата:', e);
+        return null; 
+      }
+    }
+
+    // Загружаем историю сообщений чата
+    async function loadChatHistory() {
+      if (!visitorChatId) return;
+      
+      // Показываем индикатор загрузки
+      chatBox.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">Загрузка истории чата...</div>';
+      
+      try {
+        const response = await fetch(window.location.origin + `/api/chats/${visitorChatId}/messages`, {
+          headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('token') || '') }
+        });
+        if (response.ok) {
+          const messages = await response.json();
+          // Очищаем чат и загружаем историю
+          chatBox.innerHTML = '';
+          
+          if (messages.length === 0) {
+            // Показываем приветственное сообщение
+            const welcomeDiv = document.createElement('div');
+            welcomeDiv.style.cssText = 'text-align: center; color: #666; padding: 20px; font-style: italic;';
+            welcomeDiv.innerHTML = '👋 Добро пожаловать! Задайте ваш вопрос юристу.';
+            chatBox.appendChild(welcomeDiv);
+          } else {
+            messages.forEach(msg => {
+              const div = document.createElement('div');
+              div.style.cssText = 'margin-bottom: 10px; padding: 8px; border-radius: 8px;';
+              
+              let who = 'Собеседник';
+              let bgColor = '#f0f0f0';
+              if (msg.sender === 'ai') {
+                who = '🤖 Помощник';
+                bgColor = '#e3f2fd';
+              } else if (msg.sender === 'lawyer') {
+                who = '⚖️ Юрист';
+                bgColor = '#e8f5e8';
+              } else if (msg.sender === 'visitor') {
+                who = '👤 Вы';
+                bgColor = '#fff3e0';
+              }
+              
+              div.style.backgroundColor = bgColor;
+              div.innerHTML = `<strong>${who}:</strong> ${msg.text}`;
+              chatBox.appendChild(div);
+            });
+          }
+          chatBox.scrollTop = chatBox.scrollHeight;
+        } else {
+          chatBox.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">Чат готов к работе!</div>';
+        }
+      } catch (e) {
+        console.log('Не удалось загрузить историю чата:', e);
+        chatBox.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">Чат готов к работе!</div>';
+      }
     }
     socket.on('connect', function(){ if (visitorChatId) socket.emit('join-chat', { chatId: visitorChatId }); });
     socket.on('message', function(evt){
       if (!visitorChatId || evt.chatId !== visitorChatId) return;
+      
+      // Убираем приветственное сообщение если есть
+      const welcomeMsg = chatBox.querySelector('div[style*="font-style: italic"]');
+      if (welcomeMsg) welcomeMsg.remove();
+      
       const div = document.createElement('div');
+      div.style.cssText = 'margin-bottom: 10px; padding: 8px; border-radius: 8px;';
+      
       let who = 'Собеседник';
-      if (evt.sender === 'ai') who = 'Помощник';
-      else if (evt.sender === 'lawyer') who = 'Юрист';
-      else if (evt.sender === 'visitor') who = 'Вы';
+      let bgColor = '#f0f0f0';
+      if (evt.sender === 'ai') {
+        who = '🤖 Помощник';
+        bgColor = '#e3f2fd';
+      } else if (evt.sender === 'lawyer') {
+        who = '⚖️ Юрист';
+        bgColor = '#e8f5e8';
+      } else if (evt.sender === 'visitor') {
+        who = '👤 Вы';
+        bgColor = '#fff3e0';
+      }
+      
+      div.style.backgroundColor = bgColor;
       div.innerHTML = `<strong>${who}:</strong> ${evt.text}`;
       chatBox.appendChild(div);
       chatBox.scrollTop = chatBox.scrollHeight;
@@ -544,19 +623,38 @@
     async function sendMessage() {
       const msg = inputEl.value.trim();
       if (!msg) return;
+      
+      // Показываем индикатор отправки
+      const sendBtn = document.getElementById('sendBtn');
+      const originalText = sendBtn.textContent;
+      sendBtn.textContent = 'Отправка...';
+      sendBtn.disabled = true;
+      
       inputEl.value = '';
+      
       // Гарантируем наличие чата и отправляем через Socket.IO (сервер сохранит в БД)
       const cid = await ensureVisitorChat();
-      if (!cid) return;
+      if (!cid) {
+        sendBtn.textContent = originalText;
+        sendBtn.disabled = false;
+        return;
+      }
+      
       socket.emit('message', { chatId: cid, sender: 'visitor', text: msg });
+      
+      // Восстанавливаем кнопку
+      setTimeout(() => {
+        sendBtn.textContent = originalText;
+        sendBtn.disabled = false;
+      }, 1000);
     }
     document.getElementById('sendBtn').addEventListener('click', sendMessage);
     inputEl.addEventListener('keypress', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
     });
 
-    // Pricing per document (статический каталог сохраняем)
-    const docCatalog = [
+    // Pricing per document (загружаем с сервера)
+    let docCatalog = [
       { id: 'gift', title: 'Договор дарения', price: 500 },
       { id: 'sale-car', title: 'Договор купли-продажи автомобиля', price: 700 },
       { id: 'sale-flat', title: 'Договор купли-продажи квартиры', price: 900 },
@@ -566,7 +664,28 @@
       { id: 'nda', title: 'Договор НДА (о неразглашении)', price: 600 },
       { id: 'other', title: 'Создать другой документ', price: 750 }
     ];
-    // Динамических документов на главной не подмешиваем — оставляем статический список
+
+    // Загружаем документы с сервера при загрузке страницы
+    async function loadDocumentsFromServer() {
+      try {
+        const res = await fetch(window.location.origin + '/api/documents');
+        const docs = await res.json();
+        if (docs && docs.length > 0) {
+          // Обновляем docCatalog данными с сервера
+          docCatalog = docs.map(doc => ({
+            id: doc.id,
+            title: doc.title,
+            price: doc.base_price
+          }));
+          
+          // Обновляем выпадающий список
+          fillDocTypeSelect();
+          console.log('Документы загружены с сервера:', docs.length);
+        }
+      } catch (error) {
+        console.log('Не удалось загрузить документы с сервера, используем статические данные:', error);
+      }
+    }
 
     async function fillDocTypeSelect() {
       const sel = document.getElementById('docTypeSelect');
@@ -578,6 +697,11 @@
         sel.appendChild(opt);
       });
     }
+    
+    // Загружаем документы и заполняем список при загрузке страницы
+    loadDocumentsFromServer().then(() => {
+      fillDocTypeSelect();
+    });
 
     function updateDocPreviewFromSelect() {
       const sel = document.getElementById('docTypeSelect');
