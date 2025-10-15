@@ -37,7 +37,10 @@ app.use(cors({
   }
 }));
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL || 'postgres://docflow:docflow_password@db:5432/docflow' });
+const pool = new Pool({ 
+  connectionString: process.env.DATABASE_URL || 'postgres://docflow:docflow_password@db:5432/docflow',
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
 
 // static uploads
 const uploadDir = path.join(process.cwd(), 'uploads');
@@ -89,6 +92,15 @@ app.get('/health', async (req, res) => {
     res.json({ ok: true, db: r.rows[0].ok === 1 });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.get('/api/health', async (req, res) => {
+  try {
+    const r = await pool.query('select 1 as ok');
+    res.json({ ok: true, db: r.rows[0].ok === 1 });
+  } catch (e) {
+    res.json({ ok: true, db: false, error: e.message });
   }
 });
 
@@ -144,8 +156,20 @@ app.get('/api/auth/me', authMiddleware, async (req, res) => {
 
 // Documents catalog
 app.get('/api/documents', async (req, res) => {
-  const { rows } = await pool.query('select id, title, base_price from documents order by id asc');
-  res.json(rows);
+  try {
+    const { rows } = await pool.query('select id, title, base_price from documents order by id asc');
+    res.json(rows);
+  } catch (e) {
+    // Fallback to static data when database is not available
+    console.log('[api] Using fallback documents data');
+    res.json([
+      { id: 1, title: 'Договор купли-продажи', base_price: 5000 },
+      { id: 2, title: 'Договор аренды', base_price: 3000 },
+      { id: 3, title: 'Трудовой договор', base_price: 4000 },
+      { id: 4, title: 'Договор подряда', base_price: 3500 },
+      { id: 5, title: 'Договор займа', base_price: 2500 }
+    ]);
+  }
 });
 
 // Public vacancies list
@@ -489,20 +513,49 @@ app.get('/api/stats', authMiddleware, requireRoles(['owner','admin']), async (re
 
 // ---- Bootstrap owner ----
 async function ensureAuxTables() {
-  // Ensure settings table
-  await pool.query(
-    "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT, updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now())"
-  );
-  // Seed privacy key if missing
-  await pool.query(
-    "INSERT INTO settings(key, value) VALUES ('privacy_policy_html', '<p>Политика конфиденциальности будет размещена здесь.</p>') ON CONFLICT (key) DO NOTHING"
-  );
+  try {
+    // Test database connection first
+    await pool.query('SELECT 1');
+    console.log('[bootstrap] Database connection successful');
+    
+    // Ensure settings table
+    await pool.query(
+      "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT, updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now())"
+    );
+    console.log('[bootstrap] Settings table ensured');
+    
+    // Seed privacy key if missing
+    await pool.query(
+      "INSERT INTO settings(key, value) VALUES ('privacy_policy_html', '<p>Политика конфиденциальности будет размещена здесь.</p>') ON CONFLICT (key) DO NOTHING"
+    );
+    console.log('[bootstrap] Privacy policy seeded');
 
-  // Ensure vacancies table
-  await pool.query(
-    "CREATE TABLE IF NOT EXISTS vacancies (\n      id SERIAL PRIMARY KEY,\n      title TEXT NOT NULL,\n      description TEXT,\n      location TEXT,\n      employment_type TEXT,\n      salary_min INTEGER,\n      salary_max INTEGER,\n      is_active BOOLEAN NOT NULL DEFAULT TRUE,\n      created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now(),\n      updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now()\n    )"
-  );
-  await pool.query("CREATE INDEX IF NOT EXISTS vacancies_active_idx ON vacancies(is_active)");
+    // Ensure vacancies table
+    await pool.query(
+      "CREATE TABLE IF NOT EXISTS vacancies (\n      id SERIAL PRIMARY KEY,\n      title TEXT NOT NULL,\n      description TEXT,\n      location TEXT,\n      employment_type TEXT,\n      salary_min INTEGER,\n      salary_max INTEGER,\n      is_active BOOLEAN NOT NULL DEFAULT TRUE,\n      created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now(),\n      updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now()\n    )"
+    );
+    await pool.query("CREATE INDEX IF NOT EXISTS vacancies_active_idx ON vacancies(is_active)");
+    console.log('[bootstrap] Vacancies table ensured');
+    
+    // Ensure documents table has some default data
+    const { rows: docRows } = await pool.query('SELECT COUNT(*) as count FROM documents');
+    if (docRows[0].count === '0') {
+      await pool.query(`
+        INSERT INTO documents (title, base_price) VALUES 
+        ('Договор купли-продажи', 5000),
+        ('Договор аренды', 3000),
+        ('Трудовой договор', 4000),
+        ('Договор подряда', 3500),
+        ('Договор займа', 2500)
+        ON CONFLICT DO NOTHING
+      `);
+      console.log('[bootstrap] Default documents seeded');
+    }
+    
+  } catch (e) {
+    console.error('[bootstrap] Database error:', e.message);
+    throw e;
+  }
 }
 async function ensureOwnerAccount() {
   const adminEmail = (process.env.ADMIN_EMAIL || '').toLowerCase();
@@ -527,20 +580,39 @@ async function ensureOwnerAccount() {
     }
   } catch (e) {
     console.error('[bootstrap] Ошибка создания владельца:', e.message);
+    throw e;
   }
 }
 
 (async () => {
+  let dbReady = false;
+  
   try {
     await ensureAuxTables();
+    dbReady = true;
+    console.log('[bootstrap] Database initialization successful');
   } catch (e) {
     console.error('[bootstrap] Ошибка ensureAuxTables:', e.message);
+    console.log('[bootstrap] Продолжаем без базы данных...');
   }
+  
   try {
-    await ensureOwnerAccount();
-  } finally {
-    server.listen(port, () => console.log(`API + WS listening on ${port}`));
+    if (dbReady) {
+      await ensureOwnerAccount();
+    }
+  } catch (e) {
+    console.error('[bootstrap] Ошибка создания владельца:', e.message);
   }
+  
+  // Start server regardless of database status
+  server.listen(port, () => {
+    console.log(`API + WS listening on ${port}`);
+    if (dbReady) {
+      console.log('[bootstrap] ✅ Database ready');
+    } else {
+      console.log('[bootstrap] ⚠️  Database not ready - some features may not work');
+    }
+  });
 })();
 
 // --- Encoding + optional mojibake fix for seed data ---
