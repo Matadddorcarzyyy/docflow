@@ -599,7 +599,71 @@ async function ensureAuxTables() {
     await pool.query("CREATE INDEX IF NOT EXISTS vacancies_active_idx ON vacancies(is_active)");
     console.log('[bootstrap] Vacancies table ensured');
     
-    // Ensure documents table has some default data
+    // Ensure documents table exists
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS documents (
+        id SERIAL PRIMARY KEY,
+        title TEXT NOT NULL,
+        base_price INTEGER NOT NULL,
+        created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now(),
+        updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now()
+      )
+    `);
+    console.log('[bootstrap] Documents table ensured');
+    
+    // Ensure users table exists
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'visitor',
+        full_name TEXT,
+        created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now(),
+        updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now()
+      )
+    `);
+    console.log('[bootstrap] Users table ensured');
+    
+    // Ensure chats table exists
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS chats (
+        id SERIAL PRIMARY KEY,
+        visitor_id TEXT,
+        created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now()
+      )
+    `);
+    console.log('[bootstrap] Chats table ensured');
+    
+    // Ensure messages table exists
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS messages (
+        id SERIAL PRIMARY KEY,
+        chat_id INTEGER REFERENCES chats(id) ON DELETE CASCADE,
+        sender TEXT NOT NULL,
+        text TEXT NOT NULL,
+        created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now()
+      )
+    `);
+    console.log('[bootstrap] Messages table ensured');
+    
+    // Ensure orders table exists
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS orders (
+        id SERIAL PRIMARY KEY,
+        document_id INTEGER,
+        email TEXT NOT NULL,
+        price INTEGER NOT NULL,
+        status TEXT DEFAULT 'pending',
+        provider TEXT,
+        payload JSONB,
+        created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now(),
+        updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT now()
+      )
+    `);
+    console.log('[bootstrap] Orders table ensured');
+    
+    // Add default documents if table is empty
     const { rows: docRows } = await pool.query('SELECT COUNT(*) as count FROM documents');
     if (docRows[0].count === '0') {
       await pool.query(`
@@ -609,7 +673,6 @@ async function ensureAuxTables() {
         ('Трудовой договор', 4000),
         ('Договор подряда', 3500),
         ('Договор займа', 2500)
-        ON CONFLICT DO NOTHING
       `);
       console.log('[bootstrap] Default documents seeded');
     }
