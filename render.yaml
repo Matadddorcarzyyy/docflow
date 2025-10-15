@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: docflow-api
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        value: admin@example.com
+      - key: ADMIN_PASSWORD
+        value: admin123
+      - key: ADMIN_FULL_NAME
+        value: Site Administrator
+      - key: ALLOWED_ORIGINS
+        value: https://your-app.onrender.com
+      - key: PORT
+        value: 8080
