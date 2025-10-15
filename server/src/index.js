@@ -43,6 +43,15 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL || 'postgres:
 const uploadDir = path.join(process.cwd(), 'uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 app.use('/uploads', express.static(uploadDir));
+
+// static files (HTML, CSS, JS)
+const publicDir = path.join(process.cwd(), 'public');
+if (fs.existsSync(publicDir)) {
+  app.use(express.static(publicDir));
+} else {
+  // fallback to parent directory for static files
+  app.use(express.static(path.join(process.cwd(), '..')));
+}
 const upload = multer({ dest: uploadDir, limits: { fileSize: 10 * 1024 * 1024 } });
 
 // ---- Auth helpers ----
