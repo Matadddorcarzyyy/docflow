@@ -260,7 +260,9 @@
       <div class="right-card">
         <div class="mini-carousel">
           <button class="mini-arrow left" id="miniPrev" aria-label="Предыдущий"><span class="arrow-icon">&#10094;</span></button>
-          <div class="mini-row" id="miniRow"></div>
+          <div class="mini-row" id="miniRow">
+            <!-- Документы будут загружены динамически -->
+          </div>
           <button class="mini-arrow right" id="miniNext" aria-label="Следующий"><span class="arrow-icon">&#10095;</span></button>
         </div>
 
@@ -609,7 +611,22 @@
         chatBox.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">Чат готов к работе!</div>';
       }
     }
-    socket.on('connect', function(){ if (visitorChatId) socket.emit('join-chat', { chatId: visitorChatId }); });
+    socket.on('connect', function(){ 
+      console.log('Socket подключен');
+      if (visitorChatId) {
+        socket.emit('join-chat', { chatId: visitorChatId });
+      } else {
+        // Автоматически создаем чат при подключении
+        ensureVisitorChat();
+      }
+    });
+    
+    // Автоматически создаем чат при загрузке страницы
+    document.addEventListener('DOMContentLoaded', function() {
+      setTimeout(() => {
+        ensureVisitorChat();
+      }, 1000);
+    });
     socket.on('message', function(evt){
       if (!visitorChatId || evt.chatId !== visitorChatId) return;
       
@@ -728,7 +745,61 @@
     // Загружаем документы и заполняем список при загрузке страницы
     loadDocumentsFromServer().then(() => {
       fillDocTypeSelect();
+      loadDocumentsCarousel();
     });
+
+    // Загружаем документы в карусель
+    function loadDocumentsCarousel() {
+      const miniRow = document.getElementById('miniRow');
+      if (!miniRow) return;
+      
+      miniRow.innerHTML = '';
+      
+      docCatalog.forEach((doc, index) => {
+        const docCard = document.createElement('div');
+        docCard.className = 'mini-doc-card';
+        docCard.style.cssText = `
+          min-width: 120px;
+          height: 100px;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          border-radius: 8px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          text-align: center;
+          padding: 10px;
+          margin: 0 5px;
+          cursor: pointer;
+          transition: transform 0.2s;
+        `;
+        
+        docCard.innerHTML = `
+          <div style="font-size: 24px; margin-bottom: 5px;">📄</div>
+          <div style="font-size: 12px; font-weight: bold;">${doc.title}</div>
+          <div style="font-size: 10px; opacity: 0.8;">${doc.price} ₽</div>
+        `;
+        
+        docCard.addEventListener('click', () => {
+          const docSelect = document.getElementById('docTypeSelect');
+          if (docSelect) {
+            docSelect.value = doc.id;
+            updateDocPreviewFromSelect();
+          }
+        });
+        
+        docCard.addEventListener('mouseenter', () => {
+          docCard.style.transform = 'scale(1.05)';
+        });
+        
+        docCard.addEventListener('mouseleave', () => {
+          docCard.style.transform = 'scale(1)';
+        });
+        
+        miniRow.appendChild(docCard);
+      });
+    }
 
     // Обработчики для кнопок образцов документов
     document.addEventListener('click', function(e) {
@@ -814,10 +885,14 @@
     async function startPaymentFlow() {
       // Create order → start payment
       try {
+        console.log('Начинаем процесс оплаты...');
         const sel = document.getElementById('docTypeSelect');
         const price = Number(document.getElementById('priceValue')?.textContent || 0);
         const email = document.getElementById('emailInput')?.value || '';
         const doc = sel ? sel.value : 'other';
+        
+        console.log('Данные заказа:', { doc, price, email, sellerName: sellerName?.value, buyerName: buyerName?.value });
+        
         let document_id = 1;
         if (doc && doc.indexOf('doc-') === 0) {
           const found = apiDocs.find(d => d.id === doc);
@@ -827,18 +902,26 @@
           const idx = (docCatalog.findIndex(d => d.id === doc));
           document_id = idx >= 0 ? (idx + 1) : 1;
         }
+        
+        console.log('Создаем заказ с document_id:', document_id);
         const orderRes = await fetch(window.location.origin + '/api/orders', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ document_id, email, price, payload: { sellerName: sellerName?.value, buyerName: buyerName?.value } })
         });
         const order = await orderRes.json();
+        console.log('Заказ создан:', order);
         if (!order.id) throw new Error('Order create failed');
+        
+        console.log('Начинаем оплату...');
         const payRes = await fetch(window.location.origin + '/api/payments/start', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ provider: 'yookassa', order_id: order.id, amount: price, description: 'DocFlow оплата', email })
         });
         const pay = await payRes.json();
+        console.log('Платеж создан:', pay);
         if (!pay.url) throw new Error('Payment start failed');
+        
+        console.log('Открываем страницу оплаты...');
         window.open(pay.url, '_blank');
         stepIndex = 2; showStep(stepIndex);
       } catch (e) {

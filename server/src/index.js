@@ -528,9 +528,11 @@ io.on('connection', (socket) => {
   });
 
   socket.on('message', async ({ chatId, sender, text }) => {
+    console.log('Получено сообщение:', { chatId, sender, text });
     if (!chatId || !sender || !text) return;
     try {
       const { rows } = await pool.query('insert into messages (chat_id, sender, text) values ($1, $2, $3) returning id, text, created_at', [chatId, sender, text]);
+      console.log('Сообщение сохранено в БД:', rows[0].id);
       io.to(`chat-${chatId}`).emit('message', { id: rows[0].id, chatId, sender, text: rows[0].text, created_at: rows[0].created_at });
       try {
         const hook = process.env.N8N_WEBHOOK_URL;
