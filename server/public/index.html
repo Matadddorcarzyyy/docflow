@@ -261,20 +261,45 @@
         <div class="mini-carousel">
           <button class="mini-arrow left" id="miniPrev" aria-label="Предыдущий"><span class="arrow-icon">&#10094;</span></button>
           <div class="mini-row" id="miniRow">
-            <div class="mini-doc-card" style="min-width: 120px; height: 100px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; padding: 10px; margin: 0 5px; cursor: pointer;">
-              <div style="font-size: 24px; margin-bottom: 5px;">📄</div>
+            <div class="mini-doc-card" data-doc="gift" style="min-width: 120px; height: 100px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; padding: 10px; margin: 0 5px; cursor: pointer;">
+              <div style="font-size: 24px; margin-bottom: 5px;">🎁</div>
               <div style="font-size: 12px; font-weight: bold;">Договор дарения</div>
               <div style="font-size: 10px; opacity: 0.8;">500 ₽</div>
             </div>
-            <div class="mini-doc-card" style="min-width: 120px; height: 100px; background: linear-gradient(135deg, #4caf50 0%, #45a049 100%); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; padding: 10px; margin: 0 5px; cursor: pointer;">
+            <div class="mini-doc-card" data-doc="sale-car" style="min-width: 120px; height: 100px; background: linear-gradient(135deg, #4caf50 0%, #45a049 100%); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; padding: 10px; margin: 0 5px; cursor: pointer;">
               <div style="font-size: 24px; margin-bottom: 5px;">🚗</div>
               <div style="font-size: 12px; font-weight: bold;">Купля-продажа авто</div>
               <div style="font-size: 10px; opacity: 0.8;">700 ₽</div>
             </div>
-            <div class="mini-doc-card" style="min-width: 120px; height: 100px; background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; padding: 10px; margin: 0 5px; cursor: pointer;">
+            <div class="mini-doc-card" data-doc="sale-flat" style="min-width: 120px; height: 100px; background: linear-gradient(135deg, #e91e63 0%, #c2185b 100%); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; padding: 10px; margin: 0 5px; cursor: pointer;">
+              <div style="font-size: 24px; margin-bottom: 5px;">🏢</div>
+              <div style="font-size: 12px; font-weight: bold;">Купля-продажа квартиры</div>
+              <div style="font-size: 10px; opacity: 0.8;">900 ₽</div>
+            </div>
+            <div class="mini-doc-card" data-doc="rent" style="min-width: 120px; height: 100px; background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; padding: 10px; margin: 0 5px; cursor: pointer;">
               <div style="font-size: 24px; margin-bottom: 5px;">🏠</div>
               <div style="font-size: 12px; font-weight: bold;">Аренда квартиры</div>
               <div style="font-size: 10px; opacity: 0.8;">600 ₽</div>
+            </div>
+            <div class="mini-doc-card" data-doc="service" style="min-width: 120px; height: 100px; background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; padding: 10px; margin: 0 5px; cursor: pointer;">
+              <div style="font-size: 24px; margin-bottom: 5px;">⚙️</div>
+              <div style="font-size: 12px; font-weight: bold;">Договор услуг</div>
+              <div style="font-size: 10px; opacity: 0.8;">650 ₽</div>
+            </div>
+            <div class="mini-doc-card" data-doc="loan" style="min-width: 120px; height: 100px; background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; padding: 10px; margin: 0 5px; cursor: pointer;">
+              <div style="font-size: 24px; margin-bottom: 5px;">💰</div>
+              <div style="font-size: 12px; font-weight: bold;">Договор займа</div>
+              <div style="font-size: 10px; opacity: 0.8;">550 ₽</div>
+            </div>
+            <div class="mini-doc-card" data-doc="nda" style="min-width: 120px; height: 100px; background: linear-gradient(135deg, #607d8b 0%, #455a64 100%); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; padding: 10px; margin: 0 5px; cursor: pointer;">
+              <div style="font-size: 24px; margin-bottom: 5px;">🔒</div>
+              <div style="font-size: 12px; font-weight: bold;">Договор НДА</div>
+              <div style="font-size: 10px; opacity: 0.8;">600 ₽</div>
+            </div>
+            <div class="mini-doc-card" data-doc="other" style="min-width: 120px; height: 100px; background: linear-gradient(135deg, #795548 0%, #5d4037 100%); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; padding: 10px; margin: 0 5px; cursor: pointer;">
+              <div style="font-size: 24px; margin-bottom: 5px;">📝</div>
+              <div style="font-size: 12px; font-weight: bold;">Другой документ</div>
+              <div style="font-size: 10px; opacity: 0.8;">750 ₽</div>
             </div>
           </div>
           <button class="mini-arrow right" id="miniNext" aria-label="Следующий"><span class="arrow-icon">&#10095;</span></button>
@@ -392,7 +417,7 @@
     </div>
   </footer>
 
-  <script src="http://localhost:8080/socket.io/socket.io.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
   <script>
     // Left carousel data (20 items, last is "Создать другой документ")
     const leftDocs = [
@@ -836,23 +861,15 @@
         }
       }
       
-      // Обработчик для карточек документов в карусели
+      // Обработчик для карточек документов в мини-карусели (только статические с data-doc)
       if (e.target.closest('.mini-doc-card')) {
         const card = e.target.closest('.mini-doc-card');
-        const title = card.querySelector('div:nth-child(2)').textContent;
-        const price = card.querySelector('div:nth-child(3)').textContent;
-        
-        // Находим соответствующий документ в списке
+        const docType = card.getAttribute('data-doc');
+        if (!docType) return;
         const docSelect = document.getElementById('docTypeSelect');
         if (docSelect) {
-          // Ищем по названию
-          for (let option of docSelect.options) {
-            if (option.textContent.includes(title.split(' ')[0])) {
-              docSelect.value = option.value;
-              updateDocPreviewFromSelect();
-              break;
-            }
-          }
+          docSelect.value = docType;
+          updateDocPreviewFromSelect();
         }
       }
     });
