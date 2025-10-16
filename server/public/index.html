@@ -571,7 +571,7 @@
     const inputEl = document.getElementById('userMessage');
     // Переменные чата посетителя и сокет
     let visitorChatId = null;
-    const socket = io(window.location.origin, { transports: ['websocket'] });
+    const socket = io();
     async function ensureVisitorChat(){
       try {
         if (visitorChatId) {
@@ -707,34 +707,22 @@
     async function sendMessage() {
       const msg = inputEl.value.trim();
       if (!msg) return;
-      
-      console.log('Отправляем сообщение:', msg);
-      
-      // Показываем индикатор отправки
-      const sendBtn = document.getElementById('sendBtn');
-      const originalText = sendBtn.textContent;
-      sendBtn.textContent = 'Отправка...';
-      sendBtn.disabled = true;
-      
       inputEl.value = '';
-      
+      // Оптимистично выводим сообщение пользователя
+      const optimistic = document.createElement('div');
+      optimistic.style.cssText = 'margin-bottom: 10px; padding: 8px; border-radius: 8px; background:#fff3e0;';
+      optimistic.innerHTML = `<strong>👤 Вы:</strong> ${msg}`;
+      chatBox.appendChild(optimistic);
+      chatBox.scrollTop = chatBox.scrollHeight;
+
       // Гарантируем наличие чата и отправляем через Socket.IO (сервер сохранит в БД)
       const cid = await ensureVisitorChat();
       if (!cid) {
         console.log('Не удалось получить ID чата для отправки сообщения');
-        sendBtn.textContent = originalText;
-        sendBtn.disabled = false;
         return;
       }
-      
-      console.log('Отправляем сообщение в чат:', cid);
+
       socket.emit('message', { chatId: cid, sender: 'visitor', text: msg });
-      
-      // Восстанавливаем кнопку
-      setTimeout(() => {
-        sendBtn.textContent = originalText;
-        sendBtn.disabled = false;
-      }, 1000);
     }
     document.getElementById('sendBtn').addEventListener('click', sendMessage);
     inputEl.addEventListener('keypress', (e) => {
