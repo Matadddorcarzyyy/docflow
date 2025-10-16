@@ -541,7 +541,9 @@ io.on('connection', (socket) => {
         }
       } catch(e) {}
     } catch (e) {
-      // swallow
+      console.error('[socket] Failed to save message to DB, using fallback emit:', e.message);
+      const fallbackMsg = { id: Math.floor(Math.random() * 1000000), chatId, sender, text, created_at: new Date().toISOString() };
+      io.to(`chat-${chatId}`).emit('message', fallbackMsg);
     }
   });
 
